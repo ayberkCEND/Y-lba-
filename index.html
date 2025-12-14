@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>🎄 Yeni Yıla Bir Not</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+:root{
+  --bg1:#07111f;
+  --bg2:#0b1f2e;
+  --glass:rgba(255,255,255,.08);
+  --glass2:rgba(255,255,255,.14);
+  --txt:rgba(255,255,255,.92);
+  --muted:rgba(255,255,255,.7);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+
+body{
+  margin:0;
+  font-family: system-ui,Segoe UI,Arial;
+  color:var(--txt);
+  background:
+    radial-gradient(1200px 800px at 30% 20%, #173a5a 0%, var(--bg1) 45%, var(--bg2) 100%);
+  overflow:hidden;
+}
+
+canvas{
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+}
+
+/* === ANA KART === */
+.wrap{
+  min-height:100%;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:20px;
+}
+
+.card{
+  width:100%;
+  max-width:820px;
+  background:linear-gradient(180deg,var(--glass2),var(--glass));
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:26px;
+  padding:26px;
+  backdrop-filter:blur(12px);
+  box-shadow:0 18px 60px rgba(0,0,0,.45);
+}
+
+h1{
+  margin:0 0 8px;
+  font-size:clamp(26px,4vw,38px);
+}
+
+.intro{
+  color:var(--muted);
+  margin-bottom:18px;
+}
+
+/* === NOT ALANI === */
+.noteBox{
+  margin-top:20px;
+  padding:18px;
+  border-radius:18px;
+  background:rgba(0,0,0,.25);
+  border:1px solid rgba(255,255,255,.12);
+}
+
+.noteBox h3{
+  margin-top:0;
+}
+
+input,textarea{
+  width:100%;
+  padding:12px;
+  margin-top:8px;
+  border-radius:14px;
+  border:none;
+  background:rgba(255,255,255,.12);
+  color:#fff;
+  font-size:14px;
+}
+
+textarea{resize:none;height:90px}
+
+button{
+  margin-top:12px;
+  padding:12px 18px;
+  border-radius:16px;
+  border:none;
+  background:#fff;
+  color:#000;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.notes{
+  margin-top:14px;
+}
+
+.note{
+  background:rgba(255,255,255,.08);
+  padding:12px;
+  border-radius:14px;
+  margin-top:10px;
+}
+
+.note small{
+  opacity:.65;
+  font-size:12px;
+}
+
+/* === BUTONLAR === */
+.controls{
+  margin-top:16px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="snow"></canvas>
+
+<div class="wrap">
+  <div class="card">
+
+    <h1>🎄 Yeni Yıla Bir Not Bırak</h1>
+    <p class="intro">
+      Yeni yıla küçük bir iz bırakmak ister misin?<br>
+      Buraya gelen herkes bir dilek, bir not veya birkaç kelime bırakabilir.
+    </p>
+
+    <div class="controls">
+      <button onclick="toggleMusic()">🔊 Arka Plan Müziği</button>
+    </div>
+
+    <div class="noteBox">
+      <h3>✍️ Notunu Yaz</h3>
+      <input id="nameInput" placeholder="Adın (opsiyonel)">
+      <textarea id="msgInput" placeholder="Yeni yıl notun..."></textarea>
+      <button onclick="sendNote()">Notu Gönder</button>
+
+      <h3 style="margin-top:22px">📜 Bırakılan Notlar</h3>
+      <div class="notes" id="notes"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- === FIREBASE + LOGIC === -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  getFirestore, collection, addDoc,
+  serverTimestamp, query, orderBy, onSnapshot
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+/* 🔴 BURAYI DOLDUR */
+const firebaseConfig = {
+  apiKey: "BURAYA",
+  authDomain: "BURAYA",
+  projectId: "BURAYA",
+  storageBucket: "BURAYA",
+  messagingSenderId: "BURAYA",
+  appId: "BURAYA"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const notesRef = collection(db,"notes");
+
+const q = query(notesRef, orderBy("createdAt","desc"));
+onSnapshot(q,(snap)=>{
+  const box = document.getElementById("notes");
+  box.innerHTML="";
+  snap.forEach(doc=>{
+    const d = doc.data();
+    box.innerHTML += `
+      <div class="note">
+        <b>${d.name || "Anonim"}</b><br>
+        ${d.message}
+        <div><small>${d.createdAt?.toDate().toLocaleString("tr-TR")}</small></div>
+      </div>`;
+  });
+});
+
+window.sendNote = async ()=>{
+  const name = document.getElementById("nameInput").value.trim();
+  const msg  = document.getElementById("msgInput").value.trim();
+  if(msg.length < 2) return alert("Bir şeyler yaz kanka 😄");
+
+  await addDoc(notesRef,{
+    name,
+    message:msg,
+    createdAt:serverTimestamp()
+  });
+
+  document.getElementById("msgInput").value="";
+};
+</script>
+
+<!-- === KAR EFEKTİ === -->
+<script>
+const c = document.getElementById("snow");
+const ctx = c.getContext("2d");
+let w,h,flakes=[];
+
+function resize(){
+  w=c.width=innerWidth*devicePixelRatio;
+  h=c.height=innerHeight*devicePixelRatio;
+}
+resize();
+addEventListener("resize",resize);
+
+for(let i=0;i<200;i++){
+  flakes.push({
+    x:Math.random()*w,
+    y:Math.random()*h,
+    r:Math.random()*2+1,
+    v:Math.random()+0.5
+  });
+}
+
+function snow(){
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle="rgba(255,255,255,.8)";
+  flakes.forEach(f=>{
+    f.y+=f.v;
+    if(f.y>h) f.y=0;
+    ctx.beginPath();
+    ctx.arc(f.x,f.y,f.r,0,Math.PI*2);
+    ctx.fill();
+  });
+  requestAnimationFrame(snow);
+}
+snow();
+</script>
+
+<!-- === ARKA PLAN MÜZİĞİ (ÖZGÜN, KODDAN) === -->
+<script>
+let audioCtx,osc1,osc2,gain;
+let playing=false;
+
+function toggleMusic(){
+  if(!playing){
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    osc1 = audioCtx.createOscillator();
+    osc2 = audioCtx.createOscillator();
+    gain = audioCtx.createGain();
+
+    osc1.type="sine";
+    osc2.type="triangle";
+
+    osc1.frequency.value=90;
+    osc2.frequency.value=140;
+
+    gain.gain.value=0.03;
+
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc1.start();
+    osc2.start();
+
+    playing=true;
+  }else{
+    osc1.stop();
+    osc2.stop();
+    audioCtx.close();
+    playing=false;
+  }
+}
+</script>
+
+</body>
+</html>
